@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pipeline de Voz Comercial v3.1</title>
+    <title>Pipeline de Voz Comercial v4.0 Pro</title>
     
     <link rel="manifest" href="manifest.json">
     <script>
@@ -11,6 +11,7 @@
         navigator.serviceWorker.register('sw.js');
       }
     </script>
+
     <style>
         :root {
             --bg-primary: #0b0f19;
@@ -28,10 +29,10 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: var(--bg-primary); color: var(--text-main); padding: 15px; display: flex; flex-direction: column; min-height: 100vh; }
         
-        header { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        header { margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
         header h1 { font-size: 1.2rem; font-weight: 700; color: #fff; flex-grow: 1; }
         
-        .header-buttons { display: flex; gap: 8px; }
+        .header-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
         
         .btn { background: var(--accent); color: #fff; border: none; padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; }
         .btn:hover { background: var(--accent-hover); }
@@ -44,8 +45,12 @@
 
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
+        /* Barra de Pesquisa Global */
+        .search-container { margin-bottom: 15px; width: 100%; }
+        .search-bar { width: 100%; background: var(--bg-surface); border: 1px solid var(--border); padding: 12px; border-radius: 8px; color: #fff; font-size: 0.9rem; }
+
         .pipeline-container { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 15px; flex-grow: 1; snap-type: x mandatory; }
-        .column { background: var(--bg-surface); min-width: 290px; width: 290px; border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; snap-align: start; max-height: calc(100vh - 120px); }
+        .column { background: var(--bg-surface); min-width: 290px; width: 290px; border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; snap-align: start; max-height: calc(100vh - 180px); }
         .column-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .column-header h2 { font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
         .badge { background: var(--border); color: var(--text-main); padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; }
@@ -61,7 +66,7 @@
         .history-date { color: var(--accent); font-weight: 600; font-size: 0.75rem; margin-right: 4px; }
 
         .card .action-date { font-size: 0.8rem; color: #fbbf24; font-weight: 500; display: flex; align-items: center; gap: 4px; }
-        .card-actions { display: flex; justify-content: space-between; margin-top: 5px; border-top: 1px dashed var(--border); padding-top: 8px; gap: 4px; align-items: center; }
+        .card-actions { display: flex; justify-content: space-between; margin-top: 5px; border-top: 1px dashed var(--border); padding-top: 8px; gap: 4px; align-items: center; flex-wrap: wrap; }
 
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; padding: 15px; }
         .modal-content { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; width: 100%; max-width: 450px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
@@ -84,10 +89,17 @@
     <header>
         <h1>Pipeline Móvel B2B</h1>
         <div class="header-buttons">
+            <button class="btn btn-small" onclick="exportBackup()">💾 Exp. Backup</button>
+            <button class="btn btn-small" onclick="document.getElementById('importFile').click()">📂 Imp. Backup</button>
+            <input type="file" id="importFile" style="display:none" onchange="importBackup(event)" accept=".json">
             <button class="btn btn-small btn-warning" onclick="openArchiveModal()">📂 Arquivo</button>
             <button class="btn btn-success" onclick="openAddModal()">+ Novo</button>
         </div>
     </header>
+
+    <div class="search-container">
+        <input type="text" id="searchBar" class="search-bar" placeholder="🔍 Pesquisar por cliente, notas ou próximas ações..." oninput="renderPipeline()">
+    </div>
 
     <div class="pipeline-container" id="pipeline">
         <div class="column" data-status="agendado">
@@ -111,6 +123,11 @@
             <div class="form-group">
                 <label>Nome do Cliente / Empresa</label>
                 <input type="text" id="clientName" placeholder="Ex: TecnoMoldes Portugal">
+            </div>
+
+            <div class="form-group">
+                <label>Morada / Localização (Para GPS)</label>
+                <input type="text" id="clientAddress" placeholder="Ex: Zona Industrial da Maia, Porto">
             </div>
             
             <div class="form-group">
@@ -173,15 +190,53 @@
         let currentDealId = null;
         let recognition = null;
         let isRecording = false;
-        
-        // Variável para acumular o texto de forma limpa na memória
         let accumulatedTranscript = '';
 
         document.addEventListener("DOMContentLoaded", () => {
             renderPipeline();
             initSpeechRecognition();
+            initNotifications();
+            // Executa a validação de lembretes a cada 30 segundos
+            setInterval(checkReminders, 30000);
         });
 
+        // Mecanismo de Notificações Locais (Lembretes)
+        function initNotifications() {
+            if ("Notification" in window) {
+                if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+                    Notification.requestPermission();
+                }
+            }
+        }
+
+        function checkReminders() {
+            if (!("Notification" in window) || Notification.permission !== "granted") return;
+            const agora = new Date();
+            let alterouDb = false;
+
+            db.forEach(deal => {
+                if (!deal.date || deal.status === 'ganho' || deal.status === 'perdido' || deal.notified) return;
+                
+                const dataAlvo = new Date(deal.date);
+                const diferencaMinutos = (dataAlvo - agora) / (1000 * 60);
+
+                // Dispara o alerta se faltarem entre 0 e 15 minutos para a tarefa agendada
+                if (diferencaMinutos > 0 && diferencaMinutos <= 15) {
+                    new Notification(`Lembrete Comercial: ${deal.name}`, {
+                        body: `Ação: ${deal.action || 'Sem descrição'} agendada para breve!`,
+                        icon: 'https://cdn-icons-png.flaticon.com/512/2936/2936679.png'
+                    });
+                    deal.notified = true; // Evita notificações repetidas para o mesmo alerta
+                    alterouDb = true;
+                }
+            });
+
+            if (alterouDb) {
+                localStorage.setItem('voice_pipeline_db_v3_final', JSON.stringify(db));
+            }
+        }
+
+        // Reconhecimento de Voz
         function initSpeechRecognition() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) { document.getElementById('micBtn').style.display = 'none'; return; }
@@ -189,8 +244,6 @@
             recognition = new SpeechRecognition();
             recognition.continuous = true;
             recognition.lang = 'pt-PT';
-            
-            // 🔥 MUDANÇA AQUI: Desativamos os resultados provisórios para o Android não se baralhar
             recognition.interimResults = false; 
 
             recognition.onresult = (event) => {
@@ -207,7 +260,6 @@
             
             recognition.onerror = () => { stopRecordingState(); };
             recognition.onend = () => { 
-                // 🔥 MUDANÇA AQUI: Quando a gravação para, injetamos o texto todo acumulado de uma só vez
                 if (accumulatedTranscript) {
                     const txtArea = document.getElementById('dealNotes');
                     txtArea.value += (txtArea.value ? ' ' : '') + accumulatedTranscript.trim();
@@ -221,7 +273,7 @@
             if (isRecording) { 
                 recognition.stop(); 
             } else { 
-                accumulatedTranscript = ''; // Limpa a memória temporária para o novo áudio
+                accumulatedTranscript = ''; 
                 recognition.start(); 
                 isRecording = true; 
                 const btn = document.getElementById('micBtn'); 
@@ -232,12 +284,23 @@
 
         function stopRecordingState() { isRecording = false; const btn = document.getElementById('micBtn'); btn.classList.remove('recording'); btn.innerText = "🎙️"; }
 
+        // Renderização com Filtro da Barra de Pesquisa Global
         function renderPipeline() {
             const steps = ['agendado', 'visita', 'followup'];
             steps.forEach(step => { document.getElementById(`list-${step}`).innerHTML = ''; document.getElementById(`count-${step}`).innerText = '0'; });
 
+            const termoPesquisa = document.getElementById('searchBar').value.toLowerCase();
+
             db.forEach(deal => {
                 if(deal.status === 'ganho' || deal.status === 'perdido') return;
+
+                // Lógica de filtragem da pesquisa
+                const textoHistorico = deal.history ? deal.history.map(h => h.text).join(' ') : '';
+                const corresponde = deal.name.toLowerCase().includes(termoPesquisa) || 
+                                   (deal.action && deal.action.toLowerCase().includes(termoPesquisa)) || 
+                                   textoHistorico.toLowerCase().includes(termoPesquisa);
+
+                if (!corresponde) return;
 
                 const container = document.getElementById(`list-${deal.status}`);
                 if (container) {
@@ -261,6 +324,9 @@
                         actionButtons = `<button class="btn btn-small" onclick="moveNext('${deal.id}', '${deal.status}')">Avançar ➔</button>`;
                     }
 
+                    // Botão Iniciar Rota (Google Maps) embutido dinamicamente se houver morada
+                    let botaoRota = deal.address ? `<a class="btn btn-small btn-success" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(deal.address)}" target="_blank">📍 Rota</a>` : '';
+
                     card.innerHTML = `
                         <div onclick="openEditModal('${deal.id}')" style="cursor:pointer;">
                             <h3>${deal.name}</h3>
@@ -270,6 +336,7 @@
                         </div>
                         <div class="card-actions">
                             ${actionButtons}
+                            ${botaoRota}
                             ${deal.date ? `<button class="btn btn-small btn-warning" onclick="syncToAndroidCalendar('${deal.id}')">🗓️ Agendar</button>` : ''}
                         </div>
                     `;
@@ -285,6 +352,7 @@
             currentDealId = null;
             document.getElementById('modalTitle').innerText = "Novo Negócio";
             document.getElementById('clientName').value = '';
+            document.getElementById('clientAddress').value = '';
             document.getElementById('dealStatus').value = 'agendado';
             document.getElementById('dealNotes').value = '';
             document.getElementById('nextAction').value = '';
@@ -299,6 +367,7 @@
             const deal = db.find(d => d.id === id);
             document.getElementById('modalTitle').innerText = "Editar Negócio";
             document.getElementById('clientName').value = deal.name;
+            document.getElementById('clientAddress').value = deal.address || '';
             document.getElementById('dealStatus').value = deal.status;
             document.getElementById('dealNotes').value = '';
             document.getElementById('nextAction').value = deal.action;
@@ -320,6 +389,7 @@
 
         function saveDeal() {
             const name = document.getElementById('clientName').value.trim();
+            const address = document.getElementById('clientAddress').value.trim();
             const status = document.getElementById('dealStatus').value;
             const newNoteText = document.getElementById('dealNotes').value.trim();
             const action = document.getElementById('nextAction').value.trim();
@@ -330,17 +400,28 @@
 
             if (currentDealId) {
                 const deal = db.find(d => d.id === currentDealId);
-                deal.name = name; deal.status = status; deal.action = action; deal.date = date;
+                deal.name = name; deal.address = address; deal.status = status; deal.action = action; deal.date = date;
+                if(deal.date !== date) deal.notified = false; // Reinicia notificação se a data mudar
                 if(newNoteText) { if(!deal.history) deal.history = []; deal.history.unshift({ date: currentDateStr, text: newNoteText }); }
             } else {
-                let newDeal = { id: Date.now().toString(), name, status, action, date, history: [] };
+                let newDeal = { id: Date.now().toString(), name, address, status, action, date, history: [], notified: false };
                 if(newNoteText) newDeal.history.push({ date: currentDateStr, text: newNoteText });
                 db.push(newDeal);
             }
             renderPipeline(); closeModal('dealModal');
         }
 
-        function deleteDeal() { if(confirm("Eliminar definitivamente?")) { db = db.filter(d => d.id !== currentDealId); renderPipeline(); closeModal('dealModal'); } }
+        function deleteDeal() { if(confirm("Eliminar definitivamente este negócio do funil?")) { db = db.filter(d => d.id !== currentDealId); renderPipeline(); closeModal('dealModal'); } }
+
+        // Apagar Arquivados (Ação Direta no Histórico Fechado)
+        function deleteArchivedDeal(id) {
+            if(confirm("Deseja eliminar permanentemente este registo do arquivo?")) {
+                db = db.filter(d => d.id !== id);
+                localStorage.setItem('voice_pipeline_db_v3_final', JSON.stringify(db));
+                openArchiveModal(); 
+                renderPipeline();
+            }
+        }
 
         function moveNext(id, currentStatus) {
             const deal = db.find(d => d.id === id);
@@ -369,12 +450,15 @@
                     let histText = deal.history ? deal.history.map(h => `[${h.date}] ${h.text}`).join(' // ') : 'Sem notas.';
                     
                     container.innerHTML += `
-                        <div class="archive-item" style="margin-bottom:8px;">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-                                <strong style="color:#fff;">${deal.name}</strong>
-                                <span style="background:${badgeColor}; color:#fff; font-size:0.7rem; padding:2px 6px; border-radius:4px; font-weight:bold;">${deal.status.toUpperCase()}</span>
+                        <div class="archive-item" style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                            <div style="flex-grow:1;">
+                                <div style="display:flex; justify-content:flex-start; align-items:center; gap:8px; margin-bottom:5px;">
+                                    <strong style="color:#fff;">${deal.name}</strong>
+                                    <span style="background:${badgeColor}; color:#fff; font-size:0.7rem; padding:2px 6px; border-radius:4px; font-weight:bold;">${deal.status.toUpperCase()}</span>
+                                </div>
+                                <div style="font-size:0.75rem; color:var(--text-muted); font-style:italic;">${histText}</div>
                             </div>
-                            <div style="font-size:0.75rem; color:var(--text-muted); font-style:italic;">${histText}</div>
+                            <button class="btn btn-small btn-danger" style="padding:4px 8px;" onclick="deleteArchivedDeal('${deal.id}')">🗑️</button>
                         </div>
                     `;
                 });
@@ -382,19 +466,55 @@
             openModal('archiveModal');
         }
 
+        // Sistema de Backup e Restauro em Ficheiro (.json)
+        function exportBackup() {
+            if(db.length === 0) return alert("Não existem dados para exportar.");
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `pipeline_comercial_backup_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (Array.isArray(importedData)) {
+                        if(confirm("Deseja fundir os dados salvos com o seu pipeline atual? (Não duplica IDs existentes)")) {
+                            const idsExistentes = new Set(db.map(d => d.id));
+                            importedData.forEach(item => {
+                                if(!idsExistentes.has(item.id)) db.push(item);
+                            });
+                            localStorage.setItem('voice_pipeline_db_v3_final', JSON.stringify(db));
+                            renderPipeline();
+                            alert("Base de dados atualizada e restaurada com sucesso!");
+                        }
+                    } else { alert("Ficheiro inválido. Certifique-se de que é um backup do sistema."); }
+                } catch (err) { alert("Erro ao processar o ficheiro de dados."); }
+            };
+            reader.readAsText(file);
+        }
+
+        // Exportar para Excel (Ficheiro CSV limpo)
         function exportToExcel() {
             if(db.length === 0) return alert("Não há dados para exportar.");
-            
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
-            csvContent += "ID;Cliente;Fase Atual;Proxima Acao;Data Alvo;Historico de Notas de Voz\r\n";
+            csvContent += "ID;Cliente;Morada;Fase Atual;Proxima Acao;Data Alvo;Historico de Notas de Voz\r\n";
             
             db.forEach(deal => {
                 let historyCombined = deal.history ? deal.history.map(h => `[${h.date}] ${h.text}`).join(' // ') : '';
                 let cleanName = deal.name.replace(/;/g, ',');
+                let cleanAddress = (deal.address || '').replace(/;/g, ',');
                 let cleanAction = deal.action.replace(/;/g, ',');
                 let cleanHistory = historyCombined.replace(/;/g, ',').replace(/\n/g, ' ');
                 
-                csvContent += `${deal.id};${cleanName};${deal.status.toUpperCase()};${cleanAction};${deal.date || ''};${cleanHistory}\r\n`;
+                csvContent += `${deal.id};${cleanName};${cleanAddress};${deal.status.toUpperCase()};${cleanAction};${deal.date || ''};${cleanHistory}\r\n`;
             });
             
             const encodedUri = encodeURI(csvContent);
@@ -406,6 +526,7 @@
             document.body.removeChild(link);
         }
 
+        // Sincronização com o Calendário do Sistema
         function syncToAndroidCalendar(id) {
             const deal = db.find(d => d.id === id);
             if (!deal.date) return;
@@ -414,7 +535,7 @@
             const formatISO = (date) => date.toISOString().replace(/-|:|\.\d\d\d/g, "");
             const title = encodeURIComponent(`[Vendas] ${deal.action}: ${deal.name}`);
             let historyText = deal.history ? deal.history.map(item => `• [${item.date}] ${item.text}\n`).join('') : "Sem notas.";
-            const details = encodeURIComponent(`Histórico acumulado:\n${historyText}`);
+            const details = encodeURIComponent(`Morada: ${deal.address || 'Não definida'}\n\nHistórico:\n${historyText}`);
             const dates = formatISO(startTime) + "/" + formatISO(endTime);
             const calendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&sf=true&output=xml`;
             window.open(calendarUrl, '_blank');
