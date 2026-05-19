@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pipeline de Voz Comercial v2</title>
+    <title>Pipeline de Voz Comercial v3</title>
     <style>
         :root {
             --bg-primary: #0b0f19;
@@ -15,19 +15,23 @@
             --border: #1e293b;
             --success: #10b981;
             --danger: #ef4444;
+            --warning: #f59e0b;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: var(--bg-primary); color: var(--text-main); padding: 15px; display: flex; flex-direction: column; min-height: 100vh; }
         
-        header { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-        header h1 { font-size: 1.3rem; font-weight: 700; color: #fff; }
+        header { margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        header h1 { font-size: 1.2rem; font-weight: 700; color: #fff; flex-grow: 1; }
         
-        .btn { background: var(--accent); color: #fff; border: none; padding: 12px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+        .header-buttons { display: flex; gap: 8px; }
+        
+        .btn { background: var(--accent); color: #fff; border: none; padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; }
         .btn:hover { background: var(--accent-hover); }
-        .btn-small { padding: 6px 12px; font-size: 0.8rem; background: var(--bg-primary); border: 1px solid var(--border); }
+        .btn-small { padding: 6px 10px; font-size: 0.75rem; background: var(--bg-primary); border: 1px solid var(--border); }
         .btn-success { background: var(--success); }
         .btn-danger { background: var(--danger); }
+        .btn-warning { background: var(--warning); color: #000; }
         .btn-mic { background: #3b82f6; border-radius: 50%; width: 45px; height: 45px; justify-content: center; align-items: center; padding: 0; }
         .btn-mic.recording { background: var(--danger); animation: pulse 1.5s infinite; }
 
@@ -35,56 +39,61 @@
 
         /* Pipeline Mobile (Scroll Horizontal) */
         .pipeline-container { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 15px; flex-grow: 1; snap-type: x mandatory; }
-        .column { background: var(--bg-surface); min-width: 290px; width: 290px; border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; snap-align: start; max-height: calc(100vh - 100px); }
+        .column { background: var(--bg-surface); min-width: 290px; width: 290px; border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; snap-align: start; max-height: calc(100vh - 120px); }
         .column-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .column-header h2 { font-size: 0.95rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-        .badge { background: var(--border); color: var(--text-main); padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; }
+        .column-header h2 { font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge { background: var(--border); color: var(--text-main); padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; }
         
         .cards-container { padding: 10px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; flex-grow: 1; }
         
         /* Cartão de Negócio */
-        .card { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 10px; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .card h3 { font-size: 1rem; font-weight: 600; color: #fff; }
+        .card { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+        .card h3 { font-size: 0.95rem; font-weight: 600; color: #fff; }
         
-        /* Box do Histórico Cumulativo dentro do Cartão */
-        .card .history-container { font-size: 0.8rem; color: #94a3b8; background: rgba(0,0,0,0.25); padding: 8px; border-radius: 6px; max-height: 90px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; border-left: 2px solid var(--accent); }
+        /* Box do Histórico Cumulativo */
+        .card .history-container { font-size: 0.8rem; color: #94a3b8; background: rgba(0,0,0,0.25); padding: 8px; border-radius: 6px; max-height: 80px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; border-left: 2px solid var(--accent); }
         .history-item { line-height: 1.3; border-bottom: 1px dashed #1e293b; padding-bottom: 4px; }
         .history-item:last-child { border-bottom: none; padding-bottom: 0; }
         .history-date { color: var(--accent); font-weight: 600; font-size: 0.75rem; margin-right: 4px; }
 
         .card .action-date { font-size: 0.8rem; color: #fbbf24; font-weight: 500; display: flex; align-items: center; gap: 4px; }
-        .card-actions { display: flex; justify-content: space-between; margin-top: 5px; border-top: 1px dashed var(--border); padding-top: 10px; gap: 5px; }
+        .card-actions { display: flex; justify-content: space-between; margin-top: 5px; border-top: 1px dashed var(--border); padding-top: 8px; gap: 4px; }
 
         /* Modais */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; padding: 15px; }
-        .modal-content { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px; width: 100%; max-width: 450px; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
-        .modal-content h3 { font-size: 1.2rem; font-weight: 700; }
-        .form-group { display: flex; flex-direction: column; gap: 6px; position: relative; }
-        .form-group label { font-size: 0.8rem; color: #94a3b8; font-weight: 500; }
-        .form-group input, .form-group select, .form-group textarea { background: var(--bg-primary); border: 1px solid var(--border); padding: 12px; border-radius: 8px; color: #fff; font-size: 0.9rem; }
-        .form-group textarea { resize: none; height: 80px; padding-right: 50px; }
+        .modal-content { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; width: 100%; max-width: 450px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
+        .modal-content h3 { font-size: 1.1rem; font-weight: 700; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; position: relative; }
+        .form-group label { font-size: 0.75rem; color: #94a3b8; font-weight: 500; }
+        .form-group input, .form-group select, .form-group textarea { background: var(--bg-primary); border: 1px solid var(--border); padding: 10px; border-radius: 8px; color: #fff; font-size: 0.85rem; }
+        .form-group textarea { resize: none; height: 70px; padding-right: 50px; }
         
-        /* Área visível do Histórico no Modal de Edição */
-        .modal-history-view { background: var(--bg-primary); border: 1px solid var(--border); padding: 10px; border-radius: 8px; max-height: 120px; overflow-y: auto; font-size: 0.85rem; display: flex; flex-direction: column; gap: 8px; }
+        .modal-history-view { background: var(--bg-primary); border: 1px solid var(--border); padding: 8px; border-radius: 8px; max-height: 100px; overflow-y: auto; font-size: 0.8rem; display: flex; flex-direction: column; gap: 6px; }
+        .mic-container { position: absolute; right: 10px; bottom: 8px; }
+        .modal-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 
-        .mic-container { position: absolute; right: 10px; bottom: 10px; }
-        .modal-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+        /* Lista de Arquivo Estilizada */
+        .archive-list { display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; margin-top: 10px; }
+        .archive-item { background: var(--bg-primary); border: 1px solid var(--border); padding: 10px; border-radius: 8px; font-size: 0.85rem; }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>Pipeline de Voz B2B</h1>
-        <button class="btn btn-success" onclick="openAddModal()">+ Novo Negócio</button>
+        <h1>Pipeline Móvel B2B</h1>
+        <div class="header-buttons">
+            <button class="btn btn-small btn-warning" onclick="openArchiveModal()">📂 Arquivo</button>
+            <button class="btn btn-success" onclick="openAddModal()">+ Novo</button>
+        </div>
     </header>
 
     <div class="pipeline-container" id="pipeline">
         <div class="column" data-status="agendado">
-            <div class="column-header"><h2>1. Agendado / Prospeção</h2><span class="badge" id="count-agendado">0</span></div>
+            <div class="column-header"><h2>1. Agendado / Rota</h2><span class="badge" id="count-agendado">0</span></div>
             <div class="cards-container" id="list-agendado"></div>
         </div>
         <div class="column" data-status="visita">
-            <div class="column-header"><h2>2. Visita / Diagnóstico Feito</h2><span class="badge" id="count-visita">0</span></div>
+            <div class="column-header"><h2>2. Reunião / Visita Feita</h2><span class="badge" id="count-visita">0</span></div>
             <div class="cards-container" id="list-visita"></div>
         </div>
         <div class="column" data-status="followup">
@@ -105,8 +114,8 @@
             <div class="form-group">
                 <label>Fase do Funil</label>
                 <select id="dealStatus">
-                    <option value="agendado">1. Agendado / Prospeção</option>
-                    <option value="visita">2. Visita / Diagnóstico Feito</option>
+                    <option value="agendado">1. Agendado / Rota</option>
+                    <option value="visita">2. Reunião / Visita Feita</option>
                     <option value="followup">3. Proposta / Follow-up</option>
                 </select>
             </div>
@@ -117,34 +126,48 @@
             </div>
 
             <div class="form-group" style="position: relative;">
-                <label id="notesLabel">Adicionar Nova Nota de Campo (🎙️ Gravar Voz)</label>
-                <textarea id="dealNotes" placeholder="Dite a nova atualização ou resumo da visita..."></textarea>
+                <label id="notesLabel">Adicionar Nota de Campo (🎙️ Gravar Voz)</label>
+                <textarea id="dealNotes" placeholder="Dite a nova atualização comercial..."></textarea>
                 <div class="mic-container">
-                    <button class="btn btn-mic" id="micBtn" onclick="toggleVoiceRecognition()" title="Gravar Áudio">🎙️</button>
+                    <button class="btn btn-mic" id="micBtn" onclick="toggleVoiceRecognition()">🎙️</button>
                 </div>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div class="form-group">
                     <label>Próxima Ação</label>
-                    <input type="text" id="nextAction" placeholder="Ex: Ligar a fechar preço">
+                    <input type="text" id="nextAction" placeholder="Ex: Enviar preços">
                 </div>
                 <div class="form-group">
-                    <label>Data / Hora Alvo</label>
+                    <label>Data / Hora</label>
                     <input type="datetime-local" id="actionDate">
                 </div>
             </div>
 
             <div class="modal-buttons">
                 <button class="btn btn-small btn-danger" id="deleteBtn" style="margin-right: auto; display: none;" onclick="deleteDeal()">Eliminar</button>
-                <button class="btn btn-small" onclick="closeModal()">Cancelar</button>
+                <button class="btn btn-small" onclick="closeModal('dealModal')">Cancelar</button>
                 <button class="btn btn-success" onclick="saveDeal()">Guardar</button>
             </div>
         </div>
     </div>
 
+    <div class="modal" id="archiveModal">
+        <div class="modal-content" style="max-width: 500px;">
+            <h3>📂 Arquivo de Clientes Fechados</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Negócios concluídos (Ganhos ou Perdidos) para consulta histórica.</p>
+            
+            <div class="archive-list" id="archiveListContent"></div>
+
+            <div class="modal-buttons" style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 12px;">
+                <button class="btn btn-success" onclick="exportToExcel()" style="margin-right: auto;">📥 Descarregar Excel (CSV)</button>
+                <button class="btn btn-small" onclick="closeModal('archiveModal')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        let db = JSON.parse(localStorage.getItem('voice_pipeline_db_v2')) || [];
+        let db = JSON.parse(localStorage.getItem('voice_pipeline_db_v3')) || [];
         let currentDealId = null;
         let recognition = null;
         let isRecording = false;
@@ -156,10 +179,7 @@
 
         function initSpeechRecognition() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRecognition) {
-                document.getElementById('micBtn').style.display = 'none';
-                return;
-            }
+            if (!SpeechRecognition) { document.getElementById('micBtn').style.display = 'none'; return; }
             recognition = new SpeechRecognition();
             recognition.continuous = true;
             recognition.lang = 'pt-PT';
@@ -179,62 +199,48 @@
         }
 
         function toggleVoiceRecognition() {
-            if (!recognition) return alert("Reconhecimento de voz indisponível.");
-            if (isRecording) {
-                recognition.stop();
-                stopRecordingState();
-            } else {
-                recognition.start();
-                isRecording = true;
-                const btn = document.getElementById('micBtn');
-                btn.classList.add('recording');
-                btn.innerText = "🛑";
-            }
+            if (!recognition) return alert("Voz indisponível.");
+            if (isRecording) { recognition.stop(); stopRecordingState(); } 
+            else { recognition.start(); isRecording = true; const btn = document.getElementById('micBtn'); btn.classList.add('recording'); btn.innerText = "🛑"; }
         }
 
-        function stopRecordingState() {
-            isRecording = false;
-            const btn = document.getElementById('micBtn');
-            btn.classList.remove('recording');
-            btn.innerText = "🎙️";
-        }
+        function stopRecordingState() { isRecording = false; const btn = document.getElementById('micBtn'); btn.classList.remove('recording'); btn.innerText = "🎙️"; }
 
         function renderPipeline() {
             const steps = ['agendado', 'visita', 'followup'];
-            steps.forEach(step => {
-                document.getElementById(`list-${step}`).innerHTML = '';
-                document.getElementById(`count-${step}`).innerText = '0';
-            });
+            steps.forEach(step => { document.getElementById(`list-${step}`).innerHTML = ''; document.getElementById(`count-${step}`).innerText = '0'; });
 
+            // Apenas renderiza no pipeline os negócios cujo estado NÃO seja ganho ou perdido
             db.forEach(deal => {
+                if(deal.status === 'ganho' || deal.status === 'perdido') return;
+
                 const container = document.getElementById(`list-${deal.status}`);
                 if (container) {
                     const card = document.createElement('div');
                     card.className = 'card';
-                    
                     let dateDisplay = deal.date ? `📅 ${new Date(deal.date).toLocaleString('pt-PT', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})}` : '⚠️ Sem data';
                     
-                    // Constrói o histórico visual para o Cartão
                     let historyHtml = '<div class="history-container">';
                     if (deal.history && deal.history.length > 0) {
-                        deal.history.forEach(item => {
-                            historyHtml += `<div class="history-item"><span class="history-date">[${item.date}]</span>${item.text}</div>`;
-                        });
-                    } else {
-                        historyHtml += '<div style="font-style:italic;">Sem notas registadas.</div>';
-                    }
+                        deal.history.forEach(item => { historyHtml += `<div class="history-item"><span class="history-date">[${item.date}]</span>${item.text}</div>`; });
+                    } else { historyHtml += '<div style="font-style:italic;">Sem notas registadas.</div>'; }
                     historyHtml += '</div>';
+
+                    let nextActionBtnHtml = deal.status === 'followup' 
+                        ? `<button class="btn btn-small btn-success" onclick="closeBusiness('${deal.id}', 'ganho')">🎉 Ganho</button>
+                           <button class="btn btn-small btn-danger" onclick="closeBusiness('${deal.id}', 'perdido')">❌ Perdido</button>`
+                        : `<button class="btn btn-small" onclick="moveNext('${deal.id}', '${deal.status}')">Avançar ➔</button>`;
 
                     card.innerHTML = `
                         <div onclick="openEditModal('${deal.id}')" style="cursor:pointer;">
                             <h3>${deal.name}</h3>
                             ${historyHtml}
-                            <div class="action-date" style="margin-top:8px;">🎯 ${deal.action || 'Próximo passo'}</div>
-                            <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">${dateDisplay}</div>
+                            <div class="action-date" style="margin-top:6px;">🎯 ${deal.action || 'Próximo passo'}</div>
+                            <div style="font-size:0.75rem; color:#64748b;">${dateDisplay}</div>
                         </div>
                         <div class="card-actions">
-                            <button class="btn btn-small" onclick="moveNext('${deal.id}', '${deal.status}')">Avançar ➔</button>
-                            ${deal.date ? `<button class="btn btn-small btn-success" onclick="syncToAndroidCalendar('${deal.id}')">🗓️ Agendar</button>` : ''}
+                            ${nextActionBtnHtml}
+                            ${deal.date ? `<button class="btn btn-small btn-warning" onclick="syncToAndroidCalendar('${deal.id}')">🗓️ Agendar</button>` : ''}
                         </div>
                     `;
                     container.appendChild(card);
@@ -242,7 +248,7 @@
                     badge.innerText = parseInt(badge.innerText) + 1;
                 }
             });
-            localStorage.setItem('voice_pipeline_db_v2', JSON.stringify(db));
+            localStorage.setItem('voice_pipeline_db_v3', JSON.stringify(db));
         }
 
         function openAddModal() {
@@ -254,9 +260,8 @@
             document.getElementById('nextAction').value = '';
             document.getElementById('actionDate').value = '';
             document.getElementById('historyViewSection').style.display = 'none';
-            document.getElementById('notesLabel').innerText = "Notas de Campo (🎙️ Gravar Voz)";
             document.getElementById('deleteBtn').style.display = 'none';
-            openModal();
+            openModal('dealModal');
         }
 
         function openEditModal(id) {
@@ -265,29 +270,23 @@
             document.getElementById('modalTitle').innerText = "Editar Negócio";
             document.getElementById('clientName').value = deal.name;
             document.getElementById('dealStatus').value = deal.status;
-            document.getElementById('dealNotes').value = ''; // Limpo para nova nota
+            document.getElementById('dealNotes').value = '';
             document.getElementById('nextAction').value = deal.action;
             document.getElementById('actionDate').value = deal.date;
-            document.getElementById('notesLabel').innerText = "Adicionar Nova Nota (🎙️ Gravar Voz)";
             
-            // Renderiza o Histórico dentro do Modal
             const histContent = document.getElementById('modalHistoryContent');
             histContent.innerHTML = '';
             if(deal.history && deal.history.length > 0) {
-                deal.history.forEach(item => {
-                    histContent.innerHTML += `<div><strong style="color:var(--accent); font-size:0.8rem;">[${item.date}]</strong> <span style="color:#cbd5e1;">${item.text}</span></div>`;
-                });
+                deal.history.forEach(item => { histContent.innerHTML += `<div><strong style="color:var(--accent);">[${item.date}]</strong> <span style="color:#cbd5e1;">${item.text}</span></div>`; });
                 document.getElementById('historyViewSection').style.display = 'flex';
-            } else {
-                document.getElementById('historyViewSection').style.display = 'none';
-            }
+            } else { document.getElementById('historyViewSection').style.display = 'none'; }
 
             document.getElementById('deleteBtn').style.display = 'inline-flex';
-            openModal();
+            openModal('dealModal');
         }
 
-        function openModal() { document.getElementById('dealModal').style.display = 'flex'; }
-        function closeModal() { if(isRecording) recognition.stop(); document.getElementById('dealModal').style.display = 'none'; }
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { if(isRecording) recognition.stop(); document.getElementById(id).style.display = 'none'; }
 
         function saveDeal() {
             const name = document.getElementById('clientName').value.trim();
@@ -297,74 +296,102 @@
             const date = document.getElementById('actionDate').value;
 
             if (!name) return alert("Insira o nome da empresa.");
-
             const currentDateStr = new Date().toLocaleDateString('pt-PT', {day:'numeric', month:'short'});
 
             if (currentDealId) {
                 const deal = db.find(d => d.id === currentDealId);
-                deal.name = name;
-                deal.status = status;
-                deal.action = action;
-                deal.date = date;
-                
-                // Se o utilizador ditou ou escreveu algo novo, acumula no histórico
-                if(newNoteText) {
-                    if(!deal.history) deal.history = [];
-                    deal.history.unshift({ date: currentDateStr, text: newNoteText }); // Adiciona no topo
-                }
+                deal.name = name; deal.status = status; deal.action = action; deal.date = date;
+                if(newNoteText) { if(!deal.history) deal.history = []; deal.history.unshift({ date: currentDateStr, text: newNoteText }); }
             } else {
-                // Criação de novo negócio
                 let newDeal = { id: Date.now().toString(), name, status, action, date, history: [] };
-                if(newNoteText) {
-                    newDeal.history.push({ date: currentDateStr, text: newNoteText });
-                }
+                if(newNoteText) newDeal.history.push({ date: currentDateStr, text: newNoteText });
                 db.push(newDeal);
             }
-            renderPipeline();
-            closeModal();
+            renderPipeline(); closeModal('dealModal');
         }
 
-        function deleteDeal() {
-            if(confirm("Eliminar este negócio definitivamente?")) {
-                db = db.filter(d => d.id !== currentDealId);
-                renderPipeline();
-                closeModal();
-            }
-        }
+        function deleteDeal() { if(confirm("Eliminar definitivamente?")) { db = db.filter(d => d.id !== currentDealId); renderPipeline(); closeModal('dealModal'); } }
 
         function moveNext(id, currentStatus) {
             const deal = db.find(d => d.id === id);
             if (currentStatus === 'agendado') deal.status = 'visita';
             else if (currentStatus === 'visita') deal.status = 'followup';
-            else if (currentStatus === 'followup') {
-                if(confirm("Negócio Ganho! Arquivar cartão?")) db = db.filter(d => d.id !== id);
-            }
             renderPipeline();
+        }
+
+        // Mudar o estado para ganho/perdido (O Arquivo Invisível do pipeline)
+        function closeBusiness(id, result) {
+            const deal = db.find(d => d.id === id);
+            deal.status = result;
+            const msg = result === 'ganho' ? "🎉 Negócio Ganho! Parabéns!" : "❌ Negócio Fechado como Perdido. Fica para a próxima.";
+            alert(msg);
+            renderPipeline();
+        }
+
+        // Renderizar a Janela de Arquivo histórico
+        function openArchiveModal() {
+            const container = document.getElementById('archiveListContent');
+            container.innerHTML = '';
+            const archivedDeals = db.filter(d => d.status === 'ganho' || d.status === 'perdido');
+
+            if(archivedDeals.length === 0) {
+                container.innerHTML = '<div style="font-style:italic; color:var(--text-muted); text-align:center; padding:20px;">Nenhum negócio arquivado ainda.</div>';
+            } else {
+                archivedDeals.forEach(deal => {
+                    let badgeColor = deal.status === 'ganho' ? 'var(--success)' : 'var(--danger)';
+                    let histText = deal.history ? deal.history.map(h => `[${h.date}] ${h.text}`).join(' | ') : 'Sem notas.';
+                    
+                    container.innerHTML += `
+                        <div class="archive-item">
+                            <div style="display:flex; justify-content:between; align-items:center; margin-bottom:5px;">
+                                <strong style="color:#fff; flex-grow:1;">${deal.name}</strong>
+                                <span style="background:${badgeColor}; color:#fff; font-size:0.7rem; padding:2px 6px; border-radius:4px; font-weight:bold;">${deal.status.toUpperCase()}</span>
+                            </div>
+                            <div style="font-size:0.75rem; color:var(--text-muted); font-style:italic;">${histText}</div>
+                        </div>
+                    `;
+                });
+            }
+            openModal('archiveModal');
+        }
+
+        // 📥 A MAGIA DA EXPORTAÇÃO PARA EXCEL (.CSV)
+        function exportToExcel() {
+            if(db.length === 0) return alert("Não há dados para exportar.");
+            
+            // Cabeçalho da tabela Excel (Compatível com Excel em Português usando o separador de ponto e vírgula e encoding UTF-8)
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+            csvContent += "ID;Cliente;Fase Atual;Proxima Acao;Data Alvo;Historico de Notas de Voz\r\n";
+            
+            db.forEach(deal => {
+                let historyCombined = deal.history ? deal.history.map(h => `[${h.date}] ${h.text}`).join(' // ') : '';
+                // Limpeza básica de caracteres que possam quebrar o CSV
+                let cleanName = deal.name.replace(/;/g, ',');
+                let cleanAction = deal.action.replace(/;/g, ',');
+                let cleanHistory = historyCombined.replace(/;/g, ',').replace(/\n/g, ' ');
+                
+                csvContent += `${deal.id};${cleanName};${deal.status.toUpperCase()};${cleanAction};${deal.date || ''};${cleanHistory}\r\n`;
+            });
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Relatorio_Pipeline_Vendas_${new Date().toLocaleDateString('pt-PT')}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
 
         function syncToAndroidCalendar(id) {
             const deal = db.find(d => d.id === id);
             if (!deal.date) return;
-
             const startTime = new Date(deal.date);
             const endTime = new Date(startTime.getTime() + (60 * 60 * 1000));
             const formatISO = (date) => date.toISOString().replace(/-|:|\.\d\d\d/g, "");
-
             const title = encodeURIComponent(`[Vendas] ${deal.action}: ${deal.name}`);
-            
-            // Concatena todo o histórico de notas para enviar bem estruturado para o calendário
-            let historyText = "";
-            if(deal.history && deal.history.length > 0) {
-                deal.history.forEach(item => {
-                    historyText += `• [${item.date}] ${item.text}\n`;
-                });
-            } else {
-                historyText = "Sem notas de campo.";
-            }
-
+            let historyText = deal.history ? deal.history.map(item => `• [${item.date}] ${item.text}\n`).join('') : "Sem notas.";
             const details = encodeURIComponent(`Histórico acumulado:\n${historyText}`);
             const dates = formatISO(startTime) + "/" + formatISO(endTime);
-
             const calendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&sf=true&output=xml`;
             window.open(calendarUrl, '_blank');
         }
