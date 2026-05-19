@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pipeline de Voz Comercial v4.0 Pro</title>
+    <title>Pipeline de Voz Comercial v4.5 GPS Pro</title>
     
     <link rel="manifest" href="manifest.json">
     <script>
@@ -34,12 +34,13 @@
         
         .header-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
         
-        .btn { background: var(--accent); color: #fff; border: none; padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+        .btn { background: var(--accent); color: #fff; border: none; padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; text-decoration: none; }
         .btn:hover { background: var(--accent-hover); }
         .btn-small { padding: 6px 10px; font-size: 0.75rem; background: var(--bg-primary); border: 1px solid var(--border); }
         .btn-success { background: var(--success); color: #fff; }
         .btn-danger { background: var(--danger); color: #fff; }
         .btn-warning { background: var(--warning); color: #000; }
+        .btn-gps { background: #22c55e; color: white; border: 1px solid #16a34a; padding: 6px 10px; font-size: 0.8rem; border-radius: 6px; margin-top: 4px; align-self: flex-start; }
         .btn-mic { background: #3b82f6; border-radius: 50%; width: 45px; height: 45px; justify-content: center; align-items: center; padding: 0; }
         .btn-mic.recording { background: var(--danger); animation: pulse 1.5s infinite; }
 
@@ -82,6 +83,8 @@
 
         .archive-list { display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; margin-top: 10px; }
         .archive-item { background: var(--bg-primary); border: 1px solid var(--border); padding: 10px; border-radius: 8px; font-size: 0.85rem; }
+        
+        .gps-group { display: flex; flex-direction: column; gap: 2px; }
     </style>
 </head>
 <body>
@@ -125,9 +128,10 @@
                 <input type="text" id="clientName" placeholder="Ex: TecnoMoldes Portugal">
             </div>
 
-            <div class="form-group">
-                <label>Morada / Localização (Para GPS)</label>
-                <input type="text" id="clientAddress" placeholder="Ex: Zona Industrial da Maia, Porto">
+            <div class="form-group gps-group">
+                <label>Morada ou Coordenadas GPS</label>
+                <input type="text" id="clientAddress" placeholder="Ex: Rua Direita 123, Porto ou Coordenadas">
+                <button type="button" class="btn-gps" onclick="captureCurrentLocation()">📍 Capturar Localização Atual (Estou no Cliente)</button>
             </div>
             
             <div class="form-group">
@@ -196,9 +200,39 @@
             renderPipeline();
             initSpeechRecognition();
             initNotifications();
-            // Executa a validação de lembretes a cada 30 segundos
             setInterval(checkReminders, 30000);
         });
+
+        // Captura de GPS Nativa do Telemóvel
+        function captureCurrentLocation() {
+            if (!navigator.geolocation) {
+                return alert("O seu telemóvel não suporta ou bloqueou a localização GPS.");
+            }
+            
+            // Ativa indicador visual de carregamento rápido
+            const gpsBtn = document.querySelector('.btn-gps');
+            const originalText = gpsBtn.innerText;
+            gpsBtn.innerText = "⏳ A ler satélites GPS...";
+            gpsBtn.style.background = "#eab308";
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    // Guarda o formato numérico que Maps e Waze lêem sem falhas
+                    document.getElementById('clientAddress').value = `${lat},${lng}`;
+                    gpsBtn.innerText = originalText;
+                    gpsBtn.style.background = "#22c55e";
+                    alert("📍 Localização exata capturada! Clique em 'Guardar' para fixar no cliente.");
+                },
+                (error) => {
+                    gpsBtn.innerText = originalText;
+                    gpsBtn.style.background = "#22c55e";
+                    alert("Não foi possível obter o sinal GPS. Verifique se a localização do telemóvel está ligada e se deu permissões à App.");
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        }
 
         // Mecanismo de Notificações Locais (Lembretes)
         function initNotifications() {
@@ -220,13 +254,12 @@
                 const dataAlvo = new Date(deal.date);
                 const diferencaMinutos = (dataAlvo - agora) / (1000 * 60);
 
-                // Dispara o alerta se faltarem entre 0 e 15 minutos para a tarefa agendada
                 if (diferencaMinutos > 0 && diferencaMinutos <= 15) {
                     new Notification(`Lembrete Comercial: ${deal.name}`, {
                         body: `Ação: ${deal.action || 'Sem descrição'} agendada para breve!`,
                         icon: 'https://cdn-icons-png.flaticon.com/512/2936/2936679.png'
                     });
-                    deal.notified = true; // Evita notificações repetidas para o mesmo alerta
+                    deal.notified = true; 
                     alterouDb = true;
                 }
             });
@@ -284,7 +317,7 @@
 
         function stopRecordingState() { isRecording = false; const btn = document.getElementById('micBtn'); btn.classList.remove('recording'); btn.innerText = "🎙️"; }
 
-        // Renderização com Filtro da Barra de Pesquisa Global
+        // Renderização do Pipeline Geral
         function renderPipeline() {
             const steps = ['agendado', 'visita', 'followup'];
             steps.forEach(step => { document.getElementById(`list-${step}`).innerHTML = ''; document.getElementById(`count-${step}`).innerText = '0'; });
@@ -294,7 +327,6 @@
             db.forEach(deal => {
                 if(deal.status === 'ganho' || deal.status === 'perdido') return;
 
-                // Lógica de filtragem da pesquisa
                 const textoHistorico = deal.history ? deal.history.map(h => h.text).join(' ') : '';
                 const corresponde = deal.name.toLowerCase().includes(termoPesquisa) || 
                                    (deal.action && deal.action.toLowerCase().includes(termoPesquisa)) || 
@@ -324,8 +356,15 @@
                         actionButtons = `<button class="btn btn-small" onclick="moveNext('${deal.id}', '${deal.status}')">Avançar ➔</button>`;
                     }
 
-                    // Botão Iniciar Rota (Google Maps) embutido dinamicamente se houver morada
-                    let botaoRota = deal.address ? `<a class="btn btn-small btn-success" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(deal.address)}" target="_blank">📍 Rota</a>` : '';
+                    // INTEGRAÇÃO DE LINKS DE NAVEGAÇÃO DE ROTA (Deep Links Oficiais)
+                    let botoesNavegacao = '';
+                    if (deal.address) {
+                        const destinoCodificado = encodeURIComponent(deal.address);
+                        botoesNavegacao = `
+                            <a class="btn btn-small" style="background:#4285F4; color:#fff;" href="https://www.google.com/maps/dir/?api=1&destination=${destinoCodificado}" target="_blank">🗺️ Maps</a>
+                            <a class="btn btn-small" style="background:#33ccff; color:#000;" href="https://waze.com/ul?q=${destinoCodificado}&navigate=yes" target="_blank">🚙 Waze</a>
+                        `;
+                    }
 
                     card.innerHTML = `
                         <div onclick="openEditModal('${deal.id}')" style="cursor:pointer;">
@@ -335,9 +374,11 @@
                             <div style="font-size:0.75rem; color:#64748b;">${dateDisplay}</div>
                         </div>
                         <div class="card-actions">
-                            ${actionButtons}
-                            ${botaoRota}
-                            ${deal.date ? `<button class="btn btn-small btn-warning" onclick="syncToAndroidCalendar('${deal.id}')">🗓️ Agendar</button>` : ''}
+                            <div style="display:flex; gap:4px; flex-wrap:wrap; width:100%;">
+                                ${actionButtons}
+                                ${botoesNavegacao}
+                                ${deal.date ? `<button class="btn btn-small btn-warning" onclick="syncToAndroidCalendar('${deal.id}')">🗓️</button>` : ''}
+                            </div>
                         </div>
                     `;
                     container.appendChild(card);
@@ -401,7 +442,7 @@
             if (currentDealId) {
                 const deal = db.find(d => d.id === currentDealId);
                 deal.name = name; deal.address = address; deal.status = status; deal.action = action; deal.date = date;
-                if(deal.date !== date) deal.notified = false; // Reinicia notificação se a data mudar
+                if(deal.date !== date) deal.notified = false; 
                 if(newNoteText) { if(!deal.history) deal.history = []; deal.history.unshift({ date: currentDateStr, text: newNoteText }); }
             } else {
                 let newDeal = { id: Date.now().toString(), name, address, status, action, date, history: [], notified: false };
@@ -413,7 +454,6 @@
 
         function deleteDeal() { if(confirm("Eliminar definitivamente este negócio do funil?")) { db = db.filter(d => d.id !== currentDealId); renderPipeline(); closeModal('dealModal'); } }
 
-        // Apagar Arquivados (Ação Direta no Histórico Fechado)
         function deleteArchivedDeal(id) {
             if(confirm("Deseja eliminar permanentemente este registo do arquivo?")) {
                 db = db.filter(d => d.id !== id);
@@ -466,7 +506,7 @@
             openModal('archiveModal');
         }
 
-        // Sistema de Backup e Restauro em Ficheiro (.json)
+        // Sistema de Backup e Restauro (.json)
         function exportBackup() {
             if(db.length === 0) return alert("Não existem dados para exportar.");
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(db));
@@ -493,15 +533,15 @@
                             });
                             localStorage.setItem('voice_pipeline_db_v3_final', JSON.stringify(db));
                             renderPipeline();
-                            alert("Base de dados atualizada e restaurada com sucesso!");
+                            alert("Base de dados atualizada com sucesso!");
                         }
-                    } else { alert("Ficheiro inválido. Certifique-se de que é um backup do sistema."); }
-                } catch (err) { alert("Erro ao processar o ficheiro de dados."); }
+                    } else { alert("Ficheiro inválido."); }
+                } catch (err) { alert("Erro ao processar o ficheiro."); }
             };
             reader.readAsText(file);
         }
 
-        // Exportar para Excel (Ficheiro CSV limpo)
+        // Exportar para Excel (CSV)
         function exportToExcel() {
             if(db.length === 0) return alert("Não há dados para exportar.");
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
@@ -520,13 +560,13 @@
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `Relatorio_Vendas_Voz.csv`);
+            link.setAttribute("download", `Relatorio_Vendas_GPS.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         }
 
-        // Sincronização com o Calendário do Sistema
+        // Sincronização com Calendário
         function syncToAndroidCalendar(id) {
             const deal = db.find(d => d.id === id);
             if (!deal.date) return;
