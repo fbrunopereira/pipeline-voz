@@ -21,7 +21,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: var(--bg-primary); color: var(--text-main); padding: 15px; display: flex; flex-direction: column; min-height: 100vh; }
         
-        header { margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        header { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
         header h1 { font-size: 1.2rem; font-weight: 700; color: #fff; flex-grow: 1; }
         
         .header-buttons { display: flex; gap: 8px; }
@@ -29,15 +29,14 @@
         .btn { background: var(--accent); color: #fff; border: none; padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; }
         .btn:hover { background: var(--accent-hover); }
         .btn-small { padding: 6px 10px; font-size: 0.75rem; background: var(--bg-primary); border: 1px solid var(--border); }
-        .btn-success { background: var(--success); }
-        .btn-danger { background: var(--danger); }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-danger { background: var(--danger); color: #fff; }
         .btn-warning { background: var(--warning); color: #000; }
         .btn-mic { background: #3b82f6; border-radius: 50%; width: 45px; height: 45px; justify-content: center; align-items: center; padding: 0; }
         .btn-mic.recording { background: var(--danger); animation: pulse 1.5s infinite; }
 
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-        /* Pipeline Mobile (Scroll Horizontal) */
         .pipeline-container { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 15px; flex-grow: 1; snap-type: x mandatory; }
         .column { background: var(--bg-surface); min-width: 290px; width: 290px; border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; snap-align: start; max-height: calc(100vh - 120px); }
         .column-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
@@ -46,20 +45,17 @@
         
         .cards-container { padding: 10px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; flex-grow: 1; }
         
-        /* Cartão de Negócio */
         .card { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
         .card h3 { font-size: 0.95rem; font-weight: 600; color: #fff; }
         
-        /* Box do Histórico Cumulativo */
         .card .history-container { font-size: 0.8rem; color: #94a3b8; background: rgba(0,0,0,0.25); padding: 8px; border-radius: 6px; max-height: 80px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; border-left: 2px solid var(--accent); }
         .history-item { line-height: 1.3; border-bottom: 1px dashed #1e293b; padding-bottom: 4px; }
         .history-item:last-child { border-bottom: none; padding-bottom: 0; }
         .history-date { color: var(--accent); font-weight: 600; font-size: 0.75rem; margin-right: 4px; }
 
         .card .action-date { font-size: 0.8rem; color: #fbbf24; font-weight: 500; display: flex; align-items: center; gap: 4px; }
-        .card-actions { display: flex; justify-content: space-between; margin-top: 5px; border-top: 1px dashed var(--border); padding-top: 8px; gap: 4px; }
+        .card-actions { display: flex; justify-content: space-between; margin-top: 5px; border-top: 1px dashed var(--border); padding-top: 8px; gap: 4px; align-items: center; }
 
-        /* Modais */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; padding: 15px; }
         .modal-content { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; width: 100%; max-width: 450px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
         .modal-content h3 { font-size: 1.1rem; font-weight: 700; }
@@ -72,7 +68,6 @@
         .mic-container { position: absolute; right: 10px; bottom: 8px; }
         .modal-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
 
-        /* Lista de Arquivo Estilizada */
         .archive-list { display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; margin-top: 10px; }
         .archive-item { background: var(--bg-primary); border: 1px solid var(--border); padding: 10px; border-radius: 8px; font-size: 0.85rem; }
     </style>
@@ -155,19 +150,20 @@
     <div class="modal" id="archiveModal">
         <div class="modal-content" style="max-width: 500px;">
             <h3>📂 Arquivo de Clientes Fechados</h3>
-            <p style="font-size: 0.8rem; color: var(--text-muted);">Negócios concluídos (Ganhos ou Perdidos) para consulta histórica.</p>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Negócios concluídos (Ganhos ou Perdidos).</p>
             
             <div class="archive-list" id="archiveListContent"></div>
 
             <div class="modal-buttons" style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 12px;">
-                <button class="btn btn-success" onclick="exportToExcel()" style="margin-right: auto;">📥 Descarregar Excel (CSV)</button>
+                <button class="btn btn-success" onclick="exportToExcel()" style="margin-right: auto;">📥 Exportar Excel</button>
                 <button class="btn btn-small" onclick="closeModal('archiveModal')">Fechar</button>
             </div>
         </div>
     </div>
 
     <script>
-        let db = JSON.parse(localStorage.getItem('voice_pipeline_db_v3')) || [];
+        // Alterado o nome da base de dados local para forçar a atualização correta no telemóvel
+        let db = JSON.parse(localStorage.getItem('voice_pipeline_db_v3_final')) || [];
         let currentDealId = null;
         let recognition = null;
         let isRecording = false;
@@ -210,8 +206,8 @@
             const steps = ['agendado', 'visita', 'followup'];
             steps.forEach(step => { document.getElementById(`list-${step}`).innerHTML = ''; document.getElementById(`count-${step}`).innerText = '0'; });
 
-            // Apenas renderiza no pipeline os negócios cujo estado NÃO seja ganho ou perdido
             db.forEach(deal => {
+                // Se o negócio já estiver ganho ou perdido, NÃO entra nas colunas visuais
                 if(deal.status === 'ganho' || deal.status === 'perdido') return;
 
                 const container = document.getElementById(`list-${deal.status}`);
@@ -226,10 +222,16 @@
                     } else { historyHtml += '<div style="font-style:italic;">Sem notas registadas.</div>'; }
                     historyHtml += '</div>';
 
-                    let nextActionBtnHtml = deal.status === 'followup' 
-                        ? `<button class="btn btn-small btn-success" onclick="closeBusiness('${deal.id}', 'ganho')">🎉 Ganho</button>
-                           <button class="btn btn-small btn-danger" onclick="closeBusiness('${deal.id}', 'perdido')">❌ Perdido</button>`
-                        : `<button class="btn btn-small" onclick="moveNext('${deal.id}', '${deal.status}')">Avançar ➔</button>`;
+                    // Se estiver na coluna de Follow-up, mostra os botões de fecho em vez do botão avançar
+                    let actionButtons = '';
+                    if (deal.status === 'followup') {
+                        actionButtons = `
+                            <button class="btn btn-small btn-success" onclick="closeBusiness('${deal.id}', 'ganho')">🎉 Ganho</button>
+                            <button class="btn btn-small btn-danger" onclick="closeBusiness('${deal.id}', 'perdido')">❌ Perdido</button>
+                        `;
+                    } else {
+                        actionButtons = `<button class="btn btn-small" onclick="moveNext('${deal.id}', '${deal.status}')">Avançar ➔</button>`;
+                    }
 
                     card.innerHTML = `
                         <div onclick="openEditModal('${deal.id}')" style="cursor:pointer;">
@@ -239,7 +241,7 @@
                             <div style="font-size:0.75rem; color:#64748b;">${dateDisplay}</div>
                         </div>
                         <div class="card-actions">
-                            ${nextActionBtnHtml}
+                            ${actionButtons}
                             ${deal.date ? `<button class="btn btn-small btn-warning" onclick="syncToAndroidCalendar('${deal.id}')">🗓️ Agendar</button>` : ''}
                         </div>
                     `;
@@ -248,7 +250,7 @@
                     badge.innerText = parseInt(badge.innerText) + 1;
                 }
             });
-            localStorage.setItem('voice_pipeline_db_v3', JSON.stringify(db));
+            localStorage.setItem('voice_pipeline_db_v3_final', JSON.stringify(db));
         }
 
         function openAddModal() {
@@ -319,32 +321,31 @@
             renderPipeline();
         }
 
-        // Mudar o estado para ganho/perdido (O Arquivo Invisível do pipeline)
+        // 🔥 FUNÇÃO DE ARQUIVO: Muda o estado sem apagar
         function closeBusiness(id, result) {
             const deal = db.find(d => d.id === id);
             deal.status = result;
-            const msg = result === 'ganho' ? "🎉 Negócio Ganho! Parabéns!" : "❌ Negócio Fechado como Perdido. Fica para a próxima.";
-            alert(msg);
             renderPipeline();
+            alert(result === 'ganho' ? "🎉 Negócio arquivado como GANHO!" : "❌ Negócio arquivado como PERDIDO.");
         }
 
-        // Renderizar a Janela de Arquivo histórico
+        // 🔥 CONSTRUTOR DA LISTA DE ARQUIVO
         function openArchiveModal() {
             const container = document.getElementById('archiveListContent');
             container.innerHTML = '';
             const archivedDeals = db.filter(d => d.status === 'ganho' || d.status === 'perdido');
 
             if(archivedDeals.length === 0) {
-                container.innerHTML = '<div style="font-style:italic; color:var(--text-muted); text-align:center; padding:20px;">Nenhum negócio arquivado ainda.</div>';
+                container.innerHTML = '<div style="font-style:italic; color:var(--text-muted); text-align:center; padding:20px;">Nenhum negócio arquivado.</div>';
             } else {
                 archivedDeals.forEach(deal => {
                     let badgeColor = deal.status === 'ganho' ? 'var(--success)' : 'var(--danger)';
-                    let histText = deal.history ? deal.history.map(h => `[${h.date}] ${h.text}`).join(' | ') : 'Sem notas.';
+                    let histText = deal.history ? deal.history.map(h => `[${h.date}] ${h.text}`).join(' // ') : 'Sem notas.';
                     
                     container.innerHTML += `
-                        <div class="archive-item">
-                            <div style="display:flex; justify-content:between; align-items:center; margin-bottom:5px;">
-                                <strong style="color:#fff; flex-grow:1;">${deal.name}</strong>
+                        <div class="archive-item" style="margin-bottom:8px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                                <strong style="color:#fff;">${deal.name}</strong>
                                 <span style="background:${badgeColor}; color:#fff; font-size:0.7rem; padding:2px 6px; border-radius:4px; font-weight:bold;">${deal.status.toUpperCase()}</span>
                             </div>
                             <div style="font-size:0.75rem; color:var(--text-muted); font-style:italic;">${histText}</div>
@@ -355,17 +356,15 @@
             openModal('archiveModal');
         }
 
-        // 📥 A MAGIA DA EXPORTAÇÃO PARA EXCEL (.CSV)
+        // 🔥 ENGINE EXCEL (GERADOR DE CSV EM PORTUGUÊS)
         function exportToExcel() {
             if(db.length === 0) return alert("Não há dados para exportar.");
             
-            // Cabeçalho da tabela Excel (Compatível com Excel em Português usando o separador de ponto e vírgula e encoding UTF-8)
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
             csvContent += "ID;Cliente;Fase Atual;Proxima Acao;Data Alvo;Historico de Notas de Voz\r\n";
             
             db.forEach(deal => {
                 let historyCombined = deal.history ? deal.history.map(h => `[${h.date}] ${h.text}`).join(' // ') : '';
-                // Limpeza básica de caracteres que possam quebrar o CSV
                 let cleanName = deal.name.replace(/;/g, ',');
                 let cleanAction = deal.action.replace(/;/g, ',');
                 let cleanHistory = historyCombined.replace(/;/g, ',').replace(/\n/g, ' ');
@@ -376,7 +375,7 @@
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `Relatorio_Pipeline_Vendas_${new Date().toLocaleDateString('pt-PT')}.csv`);
+            link.setAttribute("download", `Relatorio_Vendas_Voz.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
