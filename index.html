@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pipeline de Voz Comercial</title>
+    <title>Pipeline de Voz Comercial v2</title>
     <style>
         :root {
             --bg-primary: #0b0f19;
@@ -45,7 +45,13 @@
         /* Cartão de Negócio */
         .card { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 10px; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
         .card h3 { font-size: 1rem; font-weight: 600; color: #fff; }
-        .card .notes-preview { font-size: 0.85rem; color: #94a3b8; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 6px; font-style: italic; max-height: 60px; overflow: hidden; text-overflow: ellipsis; }
+        
+        /* Box do Histórico Cumulativo dentro do Cartão */
+        .card .history-container { font-size: 0.8rem; color: #94a3b8; background: rgba(0,0,0,0.25); padding: 8px; border-radius: 6px; max-height: 90px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; border-left: 2px solid var(--accent); }
+        .history-item { line-height: 1.3; border-bottom: 1px dashed #1e293b; padding-bottom: 4px; }
+        .history-item:last-child { border-bottom: none; padding-bottom: 0; }
+        .history-date { color: var(--accent); font-weight: 600; font-size: 0.75rem; margin-right: 4px; }
+
         .card .action-date { font-size: 0.8rem; color: #fbbf24; font-weight: 500; display: flex; align-items: center; gap: 4px; }
         .card-actions { display: flex; justify-content: space-between; margin-top: 5px; border-top: 1px dashed var(--border); padding-top: 10px; gap: 5px; }
 
@@ -56,7 +62,11 @@
         .form-group { display: flex; flex-direction: column; gap: 6px; position: relative; }
         .form-group label { font-size: 0.8rem; color: #94a3b8; font-weight: 500; }
         .form-group input, .form-group select, .form-group textarea { background: var(--bg-primary); border: 1px solid var(--border); padding: 12px; border-radius: 8px; color: #fff; font-size: 0.9rem; }
-        .form-group textarea { resize: none; height: 100px; padding-right: 50px; }
+        .form-group textarea { resize: none; height: 80px; padding-right: 50px; }
+        
+        /* Área visível do Histórico no Modal de Edição */
+        .modal-history-view { background: var(--bg-primary); border: 1px solid var(--border); padding: 10px; border-radius: 8px; max-height: 120px; overflow-y: auto; font-size: 0.85rem; display: flex; flex-direction: column; gap: 8px; }
+
         .mic-container { position: absolute; right: 10px; bottom: 10px; }
         .modal-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
     </style>
@@ -70,16 +80,16 @@
 
     <div class="pipeline-container" id="pipeline">
         <div class="column" data-status="agendado">
-            <div class="column-header"><h2>1. Prospeção / Agendado</h2><span class="badge" id="count-agendado">0</span></div>
+            <div class="column-header"><h2>1. Agendado / Prospeção</h2><span class="badge" id="count-agendado">0</span></div>
             <div class="cards-container" id="list-agendado"></div>
         </div>
         <div class="column" data-status="visita">
-            <div class="column-header"><h2>2. Reunião / Visita Feita</h2><span class="badge" id="count-visita">0</span></div>
+            <div class="column-header"><h2>2. Visita / Diagnóstico Feito</h2><span class="badge" id="count-visita">0</span></div>
             <div class="cards-container" id="list-visita"></div>
         </div>
-        <div class="column" data-status="proposta">
-            <div class="column-header"><h2>3. Proposta Enviada</h2><span class="badge" id="count-proposta">0</span></div>
-            <div class="cards-container" id="list-proposta"></div>
+        <div class="column" data-status="followup">
+            <div class="column-header"><h2>3. Proposta / Follow-up</h2><span class="badge" id="count-followup">0</span></div>
+            <div class="cards-container" id="list-followup"></div>
         </div>
     </div>
 
@@ -95,15 +105,20 @@
             <div class="form-group">
                 <label>Fase do Funil</label>
                 <select id="dealStatus">
-                    <option value="agendado">1. Prospeção / Agendado</option>
-                    <option value="visita">2. Reunião / Visita Feita</option>
-                    <option value="proposta">3. Proposta Enviada</option>
+                    <option value="agendado">1. Agendado / Prospeção</option>
+                    <option value="visita">2. Visita / Diagnóstico Feito</option>
+                    <option value="followup">3. Proposta / Follow-up</option>
                 </select>
             </div>
 
+            <div class="form-group" id="historyViewSection" style="display:none;">
+                <label>Histórico de Notas de Campo</label>
+                <div class="modal-history-view" id="modalHistoryContent"></div>
+            </div>
+
             <div class="form-group" style="position: relative;">
-                <label>Notas de Campo (Escreva ou grave a voz 🎙️)</label>
-                <textarea id="dealNotes" placeholder="Dite o resumo da visita ou os requisitos do cliente..."></textarea>
+                <label id="notesLabel">Adicionar Nova Nota de Campo (🎙️ Gravar Voz)</label>
+                <textarea id="dealNotes" placeholder="Dite a nova atualização ou resumo da visita..."></textarea>
                 <div class="mic-container">
                     <button class="btn btn-mic" id="micBtn" onclick="toggleVoiceRecognition()" title="Gravar Áudio">🎙️</button>
                 </div>
@@ -111,7 +126,7 @@
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div class="form-group">
-                    <label>Próxima Ação (O que fazer)</label>
+                    <label>Próxima Ação</label>
                     <input type="text" id="nextAction" placeholder="Ex: Ligar a fechar preço">
                 </div>
                 <div class="form-group">
@@ -129,7 +144,7 @@
     </div>
 
     <script>
-        let db = JSON.parse(localStorage.getItem('voice_pipeline_db')) || [];
+        let db = JSON.parse(localStorage.getItem('voice_pipeline_db_v2')) || [];
         let currentDealId = null;
         let recognition = null;
         let isRecording = false;
@@ -139,44 +154,32 @@
             initSpeechRecognition();
         });
 
-        // Configuração do Motor de Voz Nativo do Android/Browser
         function initSpeechRecognition() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
-                console.log("Reconhecimento de voz não suportado neste browser.");
                 document.getElementById('micBtn').style.display = 'none';
                 return;
             }
             recognition = new SpeechRecognition();
             recognition.continuous = true;
-            recognition.lang = 'pt-PT'; // Sotaque português de Portugal
+            recognition.lang = 'pt-PT';
             recognition.interimResults = true;
 
             recognition.onresult = (event) => {
-                let interimTranscript = '';
                 let finalTranscript = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript;
-                    } else {
-                        interimTranscript += event.results[i][0].transcript;
-                    }
+                    if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
                 }
                 if(finalTranscript) {
                     document.getElementById('dealNotes').value += (document.getElementById('dealNotes').value ? ' ' : '') + finalTranscript;
                 }
             };
-
-            recognition.onerror = (e) => {
-                console.error("Erro no reconhecimento de voz: ", e);
-                stopRecordingState();
-            };
-
+            recognition.onerror = () => { stopRecordingState(); };
             recognition.onend = () => { stopRecordingState(); };
         }
 
         function toggleVoiceRecognition() {
-            if (!recognition) return alert("O reconhecimento de voz não está disponível.");
+            if (!recognition) return alert("Reconhecimento de voz indisponível.");
             if (isRecording) {
                 recognition.stop();
                 stopRecordingState();
@@ -196,9 +199,8 @@
             btn.innerText = "🎙️";
         }
 
-        // Renderização Visual da App
         function renderPipeline() {
-            const steps = ['agendado', 'visita', 'proposta'];
+            const steps = ['agendado', 'visita', 'followup'];
             steps.forEach(step => {
                 document.getElementById(`list-${step}`).innerHTML = '';
                 document.getElementById(`count-${step}`).innerText = '0';
@@ -210,14 +212,25 @@
                     const card = document.createElement('div');
                     card.className = 'card';
                     
-                    let dateDisplay = deal.date ? `📅 ${new Date(deal.date).toLocaleString('pt-PT', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})}` : '⚠️ Sem data definida';
-                    let notesSnippet = deal.notes ? deal.notes : 'Sem notas de campo registadas.';
+                    let dateDisplay = deal.date ? `📅 ${new Date(deal.date).toLocaleString('pt-PT', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})}` : '⚠️ Sem data';
+                    
+                    // Constrói o histórico visual para o Cartão
+                    let historyHtml = '<div class="history-container">';
+                    if (deal.history && deal.history.length > 0) {
+                        deal.history.forEach(item => {
+                            historyHtml += `<div class="history-item"><span class="history-date">[${item.date}]</span>${item.text}</div>`;
+                        });
+                    } else {
+                        historyHtml += '<div style="font-style:italic;">Sem notas registadas.</div>';
+                    }
+                    historyHtml += '</div>';
 
                     card.innerHTML = `
                         <div onclick="openEditModal('${deal.id}')" style="cursor:pointer;">
                             <h3>${deal.name}</h3>
-                            <div class="notes-preview">${notesSnippet}</div>
-                            <div class="action-date">🎯 ${deal.action || 'Próximo passo'} | ${dateDisplay}</div>
+                            ${historyHtml}
+                            <div class="action-date" style="margin-top:8px;">🎯 ${deal.action || 'Próximo passo'}</div>
+                            <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">${dateDisplay}</div>
                         </div>
                         <div class="card-actions">
                             <button class="btn btn-small" onclick="moveNext('${deal.id}', '${deal.status}')">Avançar ➔</button>
@@ -229,10 +242,9 @@
                     badge.innerText = parseInt(badge.innerText) + 1;
                 }
             });
-            localStorage.setItem('voice_pipeline_db', JSON.stringify(db));
+            localStorage.setItem('voice_pipeline_db_v2', JSON.stringify(db));
         }
 
-        // Controlos dos Modais
         function openAddModal() {
             currentDealId = null;
             document.getElementById('modalTitle').innerText = "Novo Negócio";
@@ -241,6 +253,8 @@
             document.getElementById('dealNotes').value = '';
             document.getElementById('nextAction').value = '';
             document.getElementById('actionDate').value = '';
+            document.getElementById('historyViewSection').style.display = 'none';
+            document.getElementById('notesLabel').innerText = "Notas de Campo (🎙️ Gravar Voz)";
             document.getElementById('deleteBtn').style.display = 'none';
             openModal();
         }
@@ -251,40 +265,67 @@
             document.getElementById('modalTitle').innerText = "Editar Negócio";
             document.getElementById('clientName').value = deal.name;
             document.getElementById('dealStatus').value = deal.status;
-            document.getElementById('dealNotes').value = deal.notes;
+            document.getElementById('dealNotes').value = ''; // Limpo para nova nota
             document.getElementById('nextAction').value = deal.action;
             document.getElementById('actionDate').value = deal.date;
+            document.getElementById('notesLabel').innerText = "Adicionar Nova Nota (🎙️ Gravar Voz)";
+            
+            // Renderiza o Histórico dentro do Modal
+            const histContent = document.getElementById('modalHistoryContent');
+            histContent.innerHTML = '';
+            if(deal.history && deal.history.length > 0) {
+                deal.history.forEach(item => {
+                    histContent.innerHTML += `<div><strong style="color:var(--accent); font-size:0.8rem;">[${item.date}]</strong> <span style="color:#cbd5e1;">${item.text}</span></div>`;
+                });
+                document.getElementById('historyViewSection').style.display = 'flex';
+            } else {
+                document.getElementById('historyViewSection').style.display = 'none';
+            }
+
             document.getElementById('deleteBtn').style.display = 'inline-flex';
             openModal();
         }
 
         function openModal() { document.getElementById('dealModal').style.display = 'flex'; }
-        function closeModal() { 
-            if(isRecording) recognition.stop();
-            document.getElementById('dealModal').style.display = 'none'; 
-        }
+        function closeModal() { if(isRecording) recognition.stop(); document.getElementById('dealModal').style.display = 'none'; }
 
         function saveDeal() {
             const name = document.getElementById('clientName').value.trim();
             const status = document.getElementById('dealStatus').value;
-            const notes = document.getElementById('dealNotes').value.trim();
+            const newNoteText = document.getElementById('dealNotes').value.trim();
             const action = document.getElementById('nextAction').value.trim();
             const date = document.getElementById('actionDate').value;
 
-            if (!name) return alert("Insira pelo menos o nome da empresa.");
+            if (!name) return alert("Insira o nome da empresa.");
+
+            const currentDateStr = new Date().toLocaleDateString('pt-PT', {day:'numeric', month:'short'});
 
             if (currentDealId) {
                 const deal = db.find(d => d.id === currentDealId);
-                Object.assign(deal, { name, status, notes, action, date });
+                deal.name = name;
+                deal.status = status;
+                deal.action = action;
+                deal.date = date;
+                
+                // Se o utilizador ditou ou escreveu algo novo, acumula no histórico
+                if(newNoteText) {
+                    if(!deal.history) deal.history = [];
+                    deal.history.unshift({ date: currentDateStr, text: newNoteText }); // Adiciona no topo
+                }
             } else {
-                db.push({ id: Date.now().toString(), name, status, notes, action, date });
+                // Criação de novo negócio
+                let newDeal = { id: Date.now().toString(), name, status, action, date, history: [] };
+                if(newNoteText) {
+                    newDeal.history.push({ date: currentDateStr, text: newNoteText });
+                }
+                db.push(newDeal);
             }
             renderPipeline();
             closeModal();
         }
 
         function deleteDeal() {
-            if(confirm("Tem a certeza que deseja eliminar este negócio?")) {
+            if(confirm("Eliminar este negócio definitivamente?")) {
                 db = db.filter(d => d.id !== currentDealId);
                 renderPipeline();
                 closeModal();
@@ -294,32 +335,37 @@
         function moveNext(id, currentStatus) {
             const deal = db.find(d => d.id === id);
             if (currentStatus === 'agendado') deal.status = 'visita';
-            else if (currentStatus === 'visita') deal.status = 'proposta';
-            else if (currentStatus === 'proposta') {
-                if(confirm("Parabéns! Marcar negócio como Ganho e arquivar?")) db = db.filter(d => d.id !== id);
+            else if (currentStatus === 'visita') deal.status = 'followup';
+            else if (currentStatus === 'followup') {
+                if(confirm("Negócio Ganho! Arquivar cartão?")) db = db.filter(d => d.id !== id);
             }
             renderPipeline();
         }
 
-        // 📅 A MÁGICA DO CALENDÁRIO UNIVERSAL
         function syncToAndroidCalendar(id) {
             const deal = db.find(d => d.id === id);
             if (!deal.date) return;
 
-            // Formatação das datas para o padrão de link de calendário do ecossistema móvel
             const startTime = new Date(deal.date);
-            const endTime = new Date(startTime.getTime() + (60 * 60 * 1000)); // Adiciona 1 hora de duração por defeito
-
+            const endTime = new Date(startTime.getTime() + (60 * 60 * 1000));
             const formatISO = (date) => date.toISOString().replace(/-|:|\.\d\d\d/g, "");
 
             const title = encodeURIComponent(`[Vendas] ${deal.action}: ${deal.name}`);
-            const details = encodeURIComponent(`Notas de Campo extraídas da App:\n\n${deal.notes}`);
+            
+            // Concatena todo o histórico de notas para enviar bem estruturado para o calendário
+            let historyText = "";
+            if(deal.history && deal.history.length > 0) {
+                deal.history.forEach(item => {
+                    historyText += `• [${item.date}] ${item.text}\n`;
+                });
+            } else {
+                historyText = "Sem notas de campo.";
+            }
+
+            const details = encodeURIComponent(`Histórico acumulado:\n${historyText}`);
             const dates = formatISO(startTime) + "/" + formatISO(endTime);
 
-            // Gera o link universal do ecossistema Google/Android Calendar
             const calendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&sf=true&output=xml`;
-            
-            // Abre diretamente o calendário do telemóvel
             window.open(calendarUrl, '_blank');
         }
     </script>
