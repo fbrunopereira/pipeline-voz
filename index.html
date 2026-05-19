@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pipeline de Voz Comercial v3</title>
+    <title>Pipeline de Voz Comercial v3.1</title>
     <style>
         :root {
             --bg-primary: #0b0f19;
@@ -162,11 +162,13 @@
     </div>
 
     <script>
-        // Alterado o nome da base de dados local para forçar a atualização correta no telemóvel
         let db = JSON.parse(localStorage.getItem('voice_pipeline_db_v3_final')) || [];
         let currentDealId = null;
         let recognition = null;
         let isRecording = false;
+        
+        // Variável para acumular o texto de forma limpa na memória
+        let accumulatedTranscript = '';
 
         document.addEventListener("DOMContentLoaded", () => {
             renderPipeline();
@@ -176,28 +178,49 @@
         function initSpeechRecognition() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) { document.getElementById('micBtn').style.display = 'none'; return; }
+            
             recognition = new SpeechRecognition();
             recognition.continuous = true;
             recognition.lang = 'pt-PT';
-            recognition.interimResults = true;
+            
+            // 🔥 MUDANÇA AQUI: Desativamos os resultados provisórios para o Android não se baralhar
+            recognition.interimResults = false; 
 
             recognition.onresult = (event) => {
-                let finalTranscript = '';
+                let currentResultHtml = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        currentResultHtml += event.results[i][0].transcript;
+                    }
                 }
-                if(finalTranscript) {
-                    document.getElementById('dealNotes').value += (document.getElementById('dealNotes').value ? ' ' : '') + finalTranscript;
+                if (currentResultHtml) {
+                    accumulatedTranscript += (accumulatedTranscript ? ' ' : '') + currentResultHtml;
                 }
             };
+            
             recognition.onerror = () => { stopRecordingState(); };
-            recognition.onend = () => { stopRecordingState(); };
+            recognition.onend = () => { 
+                // 🔥 MUDANÇA AQUI: Quando a gravação para, injetamos o texto todo acumulado de uma só vez
+                if (accumulatedTranscript) {
+                    const txtArea = document.getElementById('dealNotes');
+                    txtArea.value += (txtArea.value ? ' ' : '') + accumulatedTranscript.trim();
+                }
+                stopRecordingState(); 
+            };
         }
 
         function toggleVoiceRecognition() {
             if (!recognition) return alert("Voz indisponível.");
-            if (isRecording) { recognition.stop(); stopRecordingState(); } 
-            else { recognition.start(); isRecording = true; const btn = document.getElementById('micBtn'); btn.classList.add('recording'); btn.innerText = "🛑"; }
+            if (isRecording) { 
+                recognition.stop(); 
+            } else { 
+                accumulatedTranscript = ''; // Limpa a memória temporária para o novo áudio
+                recognition.start(); 
+                isRecording = true; 
+                const btn = document.getElementById('micBtn'); 
+                btn.classList.add('recording'); 
+                btn.innerText = "🛑"; 
+            }
         }
 
         function stopRecordingState() { isRecording = false; const btn = document.getElementById('micBtn'); btn.classList.remove('recording'); btn.innerText = "🎙️"; }
@@ -207,7 +230,6 @@
             steps.forEach(step => { document.getElementById(`list-${step}`).innerHTML = ''; document.getElementById(`count-${step}`).innerText = '0'; });
 
             db.forEach(deal => {
-                // Se o negócio já estiver ganho ou perdido, NÃO entra nas colunas visuais
                 if(deal.status === 'ganho' || deal.status === 'perdido') return;
 
                 const container = document.getElementById(`list-${deal.status}`);
@@ -222,7 +244,6 @@
                     } else { historyHtml += '<div style="font-style:italic;">Sem notas registadas.</div>'; }
                     historyHtml += '</div>';
 
-                    // Se estiver na coluna de Follow-up, mostra os botões de fecho em vez do botão avançar
                     let actionButtons = '';
                     if (deal.status === 'followup') {
                         actionButtons = `
@@ -321,7 +342,6 @@
             renderPipeline();
         }
 
-        // 🔥 FUNÇÃO DE ARQUIVO: Muda o estado sem apagar
         function closeBusiness(id, result) {
             const deal = db.find(d => d.id === id);
             deal.status = result;
@@ -329,7 +349,6 @@
             alert(result === 'ganho' ? "🎉 Negócio arquivado como GANHO!" : "❌ Negócio arquivado como PERDIDO.");
         }
 
-        // 🔥 CONSTRUTOR DA LISTA DE ARQUIVO
         function openArchiveModal() {
             const container = document.getElementById('archiveListContent');
             container.innerHTML = '';
@@ -356,7 +375,6 @@
             openModal('archiveModal');
         }
 
-        // 🔥 ENGINE EXCEL (GERADOR DE CSV EM PORTUGUÊS)
         function exportToExcel() {
             if(db.length === 0) return alert("Não há dados para exportar.");
             
