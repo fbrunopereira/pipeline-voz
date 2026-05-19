@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipeline de Voz Comercial</title>
+    <style>
+        :root {
+            --bg-primary: #0b0f19;
+            --bg-surface: #151f32;
+            --text-main: #f8fafc;
+            --text-muted: #64748b;
+            --accent: #6366f1;
+            --accent-hover: #4f46e5;
+            --border: #1e293b;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-primary); color: var(--text-main); padding: 15px; display: flex; flex-direction: column; min-height: 100vh; }
+        
+        header { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        header h1 { font-size: 1.3rem; font-weight: 700; color: #fff; }
+        
+        .btn { background: var(--accent); color: #fff; border: none; padding: 12px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-small { padding: 6px 12px; font-size: 0.8rem; background: var(--bg-primary); border: 1px solid var(--border); }
+        .btn-success { background: var(--success); }
+        .btn-danger { background: var(--danger); }
+        .btn-mic { background: #3b82f6; border-radius: 50%; width: 45px; height: 45px; justify-content: center; align-items: center; padding: 0; }
+        .btn-mic.recording { background: var(--danger); animation: pulse 1.5s infinite; }
+
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+        /* Pipeline Mobile (Scroll Horizontal) */
+        .pipeline-container { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 15px; flex-grow: 1; snap-type: x mandatory; }
+        .column { background: var(--bg-surface); min-width: 290px; width: 290px; border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; snap-align: start; max-height: calc(100vh - 100px); }
+        .column-header { padding: 15px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .column-header h2 { font-size: 0.95rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge { background: var(--border); color: var(--text-main); padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; }
+        
+        .cards-container { padding: 10px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; flex-grow: 1; }
+        
+        /* Cartão de Negócio */
+        .card { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 10px; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .card h3 { font-size: 1rem; font-weight: 600; color: #fff; }
+        .card .notes-preview { font-size: 0.85rem; color: #94a3b8; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 6px; font-style: italic; max-height: 60px; overflow: hidden; text-overflow: ellipsis; }
+        .card .action-date { font-size: 0.8rem; color: #fbbf24; font-weight: 500; display: flex; align-items: center; gap: 4px; }
+        .card-actions { display: flex; justify-content: space-between; margin-top: 5px; border-top: 1px dashed var(--border); padding-top: 10px; gap: 5px; }
+
+        /* Modais */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; padding: 15px; }
+        .modal-content { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px; width: 100%; max-width: 450px; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
+        .modal-content h3 { font-size: 1.2rem; font-weight: 700; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; position: relative; }
+        .form-group label { font-size: 0.8rem; color: #94a3b8; font-weight: 500; }
+        .form-group input, .form-group select, .form-group textarea { background: var(--bg-primary); border: 1px solid var(--border); padding: 12px; border-radius: 8px; color: #fff; font-size: 0.9rem; }
+        .form-group textarea { resize: none; height: 100px; padding-right: 50px; }
+        .mic-container { position: absolute; right: 10px; bottom: 10px; }
+        .modal-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Pipeline de Voz B2B</h1>
+        <button class="btn btn-success" onclick="openAddModal()">+ Novo Negócio</button>
+    </header>
+
+    <div class="pipeline-container" id="pipeline">
+        <div class="column" data-status="agendado">
+            <div class="column-header"><h2>1. Prospeção / Agendado</h2><span class="badge" id="count-agendado">0</span></div>
+            <div class="cards-container" id="list-agendado"></div>
+        </div>
+        <div class="column" data-status="visita">
+            <div class="column-header"><h2>2. Reunião / Visita Feita</h2><span class="badge" id="count-visita">0</span></div>
+            <div class="cards-container" id="list-visita"></div>
+        </div>
+        <div class="column" data-status="proposta">
+            <div class="column-header"><h2>3. Proposta Enviada</h2><span class="badge" id="count-proposta">0</span></div>
+            <div class="cards-container" id="list-proposta"></div>
+        </div>
+    </div>
+
+    <div class="modal" id="dealModal">
+        <div class="modal-content">
+            <h3 id="modalTitle">Detalhes do Negócio</h3>
+            
+            <div class="form-group">
+                <label>Nome do Cliente / Empresa</label>
+                <input type="text" id="clientName" placeholder="Ex: TecnoMoldes Portugal">
+            </div>
+            
+            <div class="form-group">
+                <label>Fase do Funil</label>
+                <select id="dealStatus">
+                    <option value="agendado">1. Prospeção / Agendado</option>
+                    <option value="visita">2. Reunião / Visita Feita</option>
+                    <option value="proposta">3. Proposta Enviada</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="position: relative;">
+                <label>Notas de Campo (Escreva ou grave a voz 🎙️)</label>
+                <textarea id="dealNotes" placeholder="Dite o resumo da visita ou os requisitos do cliente..."></textarea>
+                <div class="mic-container">
+                    <button class="btn btn-mic" id="micBtn" onclick="toggleVoiceRecognition()" title="Gravar Áudio">🎙️</button>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="form-group">
+                    <label>Próxima Ação (O que fazer)</label>
+                    <input type="text" id="nextAction" placeholder="Ex: Ligar a fechar preço">
+                </div>
+                <div class="form-group">
+                    <label>Data / Hora Alvo</label>
+                    <input type="datetime-local" id="actionDate">
+                </div>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="btn btn-small btn-danger" id="deleteBtn" style="margin-right: auto; display: none;" onclick="deleteDeal()">Eliminar</button>
+                <button class="btn btn-small" onclick="closeModal()">Cancelar</button>
+                <button class="btn btn-success" onclick="saveDeal()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let db = JSON.parse(localStorage.getItem('voice_pipeline_db')) || [];
+        let currentDealId = null;
+        let recognition = null;
+        let isRecording = false;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            renderPipeline();
+            initSpeechRecognition();
+        });
+
+        // Configuração do Motor de Voz Nativo do Android/Browser
+        function initSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                console.log("Reconhecimento de voz não suportado neste browser.");
+                document.getElementById('micBtn').style.display = 'none';
+                return;
+            }
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.lang = 'pt-PT'; // Sotaque português de Portugal
+            recognition.interimResults = true;
+
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+                if(finalTranscript) {
+                    document.getElementById('dealNotes').value += (document.getElementById('dealNotes').value ? ' ' : '') + finalTranscript;
+                }
+            };
+
+            recognition.onerror = (e) => {
+                console.error("Erro no reconhecimento de voz: ", e);
+                stopRecordingState();
+            };
+
+            recognition.onend = () => { stopRecordingState(); };
+        }
+
+        function toggleVoiceRecognition() {
+            if (!recognition) return alert("O reconhecimento de voz não está disponível.");
+            if (isRecording) {
+                recognition.stop();
+                stopRecordingState();
+            } else {
+                recognition.start();
+                isRecording = true;
+                const btn = document.getElementById('micBtn');
+                btn.classList.add('recording');
+                btn.innerText = "🛑";
+            }
+        }
+
+        function stopRecordingState() {
+            isRecording = false;
+            const btn = document.getElementById('micBtn');
+            btn.classList.remove('recording');
+            btn.innerText = "🎙️";
+        }
+
+        // Renderização Visual da App
+        function renderPipeline() {
+            const steps = ['agendado', 'visita', 'proposta'];
+            steps.forEach(step => {
+                document.getElementById(`list-${step}`).innerHTML = '';
+                document.getElementById(`count-${step}`).innerText = '0';
+            });
+
+            db.forEach(deal => {
+                const container = document.getElementById(`list-${deal.status}`);
+                if (container) {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    
+                    let dateDisplay = deal.date ? `📅 ${new Date(deal.date).toLocaleString('pt-PT', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})}` : '⚠️ Sem data definida';
+                    let notesSnippet = deal.notes ? deal.notes : 'Sem notas de campo registadas.';
+
+                    card.innerHTML = `
+                        <div onclick="openEditModal('${deal.id}')" style="cursor:pointer;">
+                            <h3>${deal.name}</h3>
+                            <div class="notes-preview">${notesSnippet}</div>
+                            <div class="action-date">🎯 ${deal.action || 'Próximo passo'} | ${dateDisplay}</div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn btn-small" onclick="moveNext('${deal.id}', '${deal.status}')">Avançar ➔</button>
+                            ${deal.date ? `<button class="btn btn-small btn-success" onclick="syncToAndroidCalendar('${deal.id}')">🗓️ Agendar</button>` : ''}
+                        </div>
+                    `;
+                    container.appendChild(card);
+                    const badge = document.getElementById(`count-${deal.status}`);
+                    badge.innerText = parseInt(badge.innerText) + 1;
+                }
+            });
+            localStorage.setItem('voice_pipeline_db', JSON.stringify(db));
+        }
+
+        // Controlos dos Modais
+        function openAddModal() {
+            currentDealId = null;
+            document.getElementById('modalTitle').innerText = "Novo Negócio";
+            document.getElementById('clientName').value = '';
+            document.getElementById('dealStatus').value = 'agendado';
+            document.getElementById('dealNotes').value = '';
+            document.getElementById('nextAction').value = '';
+            document.getElementById('actionDate').value = '';
+            document.getElementById('deleteBtn').style.display = 'none';
+            openModal();
+        }
+
+        function openEditModal(id) {
+            currentDealId = id;
+            const deal = db.find(d => d.id === id);
+            document.getElementById('modalTitle').innerText = "Editar Negócio";
+            document.getElementById('clientName').value = deal.name;
+            document.getElementById('dealStatus').value = deal.status;
+            document.getElementById('dealNotes').value = deal.notes;
+            document.getElementById('nextAction').value = deal.action;
+            document.getElementById('actionDate').value = deal.date;
+            document.getElementById('deleteBtn').style.display = 'inline-flex';
+            openModal();
+        }
+
+        function openModal() { document.getElementById('dealModal').style.display = 'flex'; }
+        function closeModal() { 
+            if(isRecording) recognition.stop();
+            document.getElementById('dealModal').style.display = 'none'; 
+        }
+
+        function saveDeal() {
+            const name = document.getElementById('clientName').value.trim();
+            const status = document.getElementById('dealStatus').value;
+            const notes = document.getElementById('dealNotes').value.trim();
+            const action = document.getElementById('nextAction').value.trim();
+            const date = document.getElementById('actionDate').value;
+
+            if (!name) return alert("Insira pelo menos o nome da empresa.");
+
+            if (currentDealId) {
+                const deal = db.find(d => d.id === currentDealId);
+                Object.assign(deal, { name, status, notes, action, date });
+            } else {
+                db.push({ id: Date.now().toString(), name, status, notes, action, date });
+            }
+            renderPipeline();
+            closeModal();
+        }
+
+        function deleteDeal() {
+            if(confirm("Tem a certeza que deseja eliminar este negócio?")) {
+                db = db.filter(d => d.id !== currentDealId);
+                renderPipeline();
+                closeModal();
+            }
+        }
+
+        function moveNext(id, currentStatus) {
+            const deal = db.find(d => d.id === id);
+            if (currentStatus === 'agendado') deal.status = 'visita';
+            else if (currentStatus === 'visita') deal.status = 'proposta';
+            else if (currentStatus === 'proposta') {
+                if(confirm("Parabéns! Marcar negócio como Ganho e arquivar?")) db = db.filter(d => d.id !== id);
+            }
+            renderPipeline();
+        }
+
+        // 📅 A MÁGICA DO CALENDÁRIO UNIVERSAL
+        function syncToAndroidCalendar(id) {
+            const deal = db.find(d => d.id === id);
+            if (!deal.date) return;
+
+            // Formatação das datas para o padrão de link de calendário do ecossistema móvel
+            const startTime = new Date(deal.date);
+            const endTime = new Date(startTime.getTime() + (60 * 60 * 1000)); // Adiciona 1 hora de duração por defeito
+
+            const formatISO = (date) => date.toISOString().replace(/-|:|\.\d\d\d/g, "");
+
+            const title = encodeURIComponent(`[Vendas] ${deal.action}: ${deal.name}`);
+            const details = encodeURIComponent(`Notas de Campo extraídas da App:\n\n${deal.notes}`);
+            const dates = formatISO(startTime) + "/" + formatISO(endTime);
+
+            // Gera o link universal do ecossistema Google/Android Calendar
+            const calendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&sf=true&output=xml`;
+            
+            // Abre diretamente o calendário do telemóvel
+            window.open(calendarUrl, '_blank');
+        }
+    </script>
+</body>
+</html>
